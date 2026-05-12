@@ -1,0 +1,40 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+.env/
+
+# Dataset
+data/
+
+# Model checkpoints
+checkpoints/
+backend/checkpoints/
+
+# Outputs
+outputs/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+
+# Streamlit cache
+.streamlit/
+
+# PyTorch
+*.pth
+*.pt
+
+# Docker
+*.tar

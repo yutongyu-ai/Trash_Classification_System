@@ -1,0 +1,22 @@
+experiment_name: "pytorch_hpo_exp"
+
+
+train:
+  epochs: 10
+  batch_size: 32 # default
+  device: "cuda" # "cuda" or "cpu"
+
+
+optimizer:
+  lr: 3e-4 # default
+
+
+model:
+  type: "resnet18"
+  hidden_size: 128 # default
+  num_classes: 10
+
+
+dataset:
+  root: "./data"
+  num_workers: 4

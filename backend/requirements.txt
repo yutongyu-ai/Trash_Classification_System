@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+torch
+torchvision
+numpy
+pyyaml
+Pillow
+scikit-learn
