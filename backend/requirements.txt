@@ -1,6 +1,8 @@
 fastapi
 uvicorn[standard]
 python-multipart
+torch
+torchvision
 numpy
 pyyaml
 Pillow
