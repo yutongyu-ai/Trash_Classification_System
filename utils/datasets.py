@@ -1,12 +1,12 @@
 # =====================================
-# Download STL10 and TrashNet datasets
+# TrashNet dataset loading utilities
 # =====================================
 
 import os
 import random
 import shutil
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 
 def _split_dataset(
     raw_dir,
@@ -128,85 +128,4 @@ def get_trashnet_test(
     )
 
     return test_loader
-
-
-def get_stl10_train(batch_size=32, shuffle=True):
-    """ return training dataloader
-    Args:
-        batch_size: dataloader batchsize
-        shuffle: whether to shuffle
-    Returns: train_data_loader:torch dataloader object
-    """
-
-    train_transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.RandomResizedCrop(224),  # ⭐ 替换 CenterCrop
-        transforms.RandomHorizontalFlip(),  # ⭐ 加翻转
-        transforms.ColorJitter(  # ⭐ 加颜色扰动
-            brightness=0.4,
-            contrast=0.4,
-            saturation=0.4,
-            hue=0.1
-        ),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        )
-    ])
-
-    val_transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        )
-    ])
-
-    full_train = datasets.STL10(
-        root='./data', split='train', download=True, transform=None
-    )
-
-    # train / val split
-    total_len = len(full_train)  # 5000
-    val_len = int(total_len * 0.2)
-    train_len = total_len - val_len
-
-    train_dataset, val_dataset = random_split(full_train, [train_len, val_len])
-
-    # Set transform to train and val datasets
-    train_dataset.dataset.transform = train_transform
-    val_dataset.dataset.transform = val_transform
-
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-
-    return train_loader, val_loader
-
-def get_stl10_test(batch_size=32, shuffle=True):
-    """ return test dataloader
-    Args:
-        batch_size: dataloader batchsize
-        shuffle: whether to shuffle
-    Returns: stl10_test_loader:torch dataloader object
-    """
-
-    test_transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        )
-    ])
-
-    stl10_test = datasets.STL10(
-        root='./data', split='test', download=True, transform=test_transform)
-    stl10_test_loader = DataLoader(
-        stl10_test,  batch_size=batch_size, shuffle=shuffle)
-
-    return stl10_test_loader
 

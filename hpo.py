@@ -19,9 +19,10 @@ def objective(trial):
     # Build model
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = get_model()
+    model = model.to(device)
     criterion = nn.CrossEntropyLoss()
 
-    best_loss = 0.0
+    best_loss = float("inf")
     train_loader, val_loader = get_trashnet_train(batch_size=batch_size)
     optimizer = optim.SGD(
         model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)

@@ -97,6 +97,18 @@ The application is fully containerized using Docker Compose.
 | `backend` | FastAPI inference server |
 | `frontend` | Streamlit web application |
 
+## GPU Support
+
+The `backend` service is configured to request a GPU via Docker Compose's
+`deploy.resources.reservations.devices` block. To run it:
+
+- Install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) on the host.
+- Ensure `docker compose version` is recent enough to support the `deploy.resources` GPU syntax (Compose v2).
+
+If no GPU/toolkit is available on the host, remove the `deploy` block from
+`docker-compose.yml` and the `--extra-index-url` line from
+`backend/requirements.txt` to fall back to CPU-only inference.
+
 ---
 
 # ⚙️ Installation

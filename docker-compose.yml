@@ -10,6 +10,13 @@ services:
       - ./backend:/app
       - ./checkpoints:/app/checkpoints
     restart: always
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   frontend:
     build:
