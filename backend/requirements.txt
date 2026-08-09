@@ -1,9 +1,6 @@
---extra-index-url https://download.pytorch.org/whl/cu121
-
 fastapi
 uvicorn[standard]
-torch
-torchvision
+python-multipart
 numpy
 pyyaml
 Pillow
