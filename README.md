@@ -27,8 +27,47 @@ The system classifies waste images into six categories from the TrashNet dataset
 | Model Architecture | ResNet18 |
 | Dataset | TrashNet |
 | Classes | 6 |
-| Validation Accuracy | ~95% |
+| Best Validation Accuracy | 94.2% (epoch 28/30) |
+| Test Accuracy | 93.7% (359/383 images) |
 | Inference Latency | ~60 ms |
+
+## Per-Class Results (test set, 383 images)
+
+| Class | Support | Precision | Recall | F1 |
+|---|---|---|---|---|
+| cardboard | 61 | 98.3% | 96.7% | 97.5% |
+| glass | 76 | 92.3% | 94.7% | 93.5% |
+| metal | 62 | 88.2% | 96.8% | 92.3% |
+| paper | 90 | 98.8% | 93.3% | 95.9% |
+| plastic | 73 | 93.0% | 90.4% | 91.7% |
+| trash | 21 | 85.7% | 85.7% | 85.7% |
+
+`trash` is the weakest class on both precision and recall — it also has by
+far the fewest test examples (21, vs. 61-90 for the others). TrashNet's
+class imbalance is handled during training via inverse-frequency class
+weighting (`utils/datasets.py::get_class_weights`), which helps the
+training signal, but 21 test images is still a small sample to generalize
+from — more `trash`-class data would likely help more than further loss
+reweighting at this point.
+
+![Confusion matrix](docs/eval/trashnet_confusion_matrix.png)
+
+## Training Curves
+
+Train accuracy climbs to ~99.5% while validation accuracy plateaus around
+92-94% from epoch ~10 onward — the growing train/val gap and validation
+loss flattening (while training loss keeps dropping) are signs of
+overfitting on this small (~2,500 image) dataset, despite the
+augmentation (random flip/rotation) and dropout (p=0.5) already in the
+training pipeline. The checkpoint actually shipped is whichever epoch had
+the best validation accuracy (epoch 28 here), not the final epoch, so this
+doesn't directly hurt the deployed model's accuracy — but it's a signal
+that stronger augmentation, partial backbone freezing, or more data would
+likely generalize better than training longer.
+
+| Accuracy | Loss |
+|---|---|
+| ![Accuracy curve](docs/eval/trashnet_acc.png) | ![Loss curve](docs/eval/trashnet_loss.png) |
 
 ---
 
@@ -186,7 +225,7 @@ project/
 ├── backend/
 │   ├── models/               # Model architecture and utilities
 │   ├── Dockerfile
-│   ├── inference.py          # Inference pipeline
+│   ├── inference.py          # Inference pipeline (loads from HF Hub if no local checkpoint)
 │   ├── main.py               # FastAPI application
 │   └── requirements.txt
 │
@@ -195,14 +234,18 @@ project/
 │   ├── Dockerfile
 │   └── requirements.txt
 │
+├── tests/                     # pytest suite (unit + integration tests)
+├── docs/eval/                 # Evaluation plots referenced in this README
 ├── checkpoints/               # Model checkpoints (used for both training output and inference)
 ├── data/                      # Dataset directory
 ├── outputs/                   # Training outputs and logs
 ├── utils/                     # Utility functions
 │
+├── .github/workflows/ci.yml   # Lint, tests, Docker build check
 ├── docker-compose.yml
-├── hpo.py                    # Hyperparameter optimization
-├── train.py                  # Training script
-├── main.py 
+├── hpo.py                     # Hyperparameter optimization
+├── train.py                   # Training script
+├── train_hpo.slurm            # SLURM job spec for HPC training
+├── main.py
 ├── README.md
 ```
