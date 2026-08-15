@@ -1,0 +1,6 @@
+# Deps for streamlit_app.py, the Streamlit Community Cloud entry point.
+# Reuses backend/requirements.txt so the inference stack (torch version,
+# etc.) never drifts from what's actually tested via Docker/docker-compose.
+-r backend/requirements.txt
+
+streamlit

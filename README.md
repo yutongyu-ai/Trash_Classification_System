@@ -1,18 +1,7 @@
----
-title: Trash Classification System
-emoji: ♻️
-colorFrom: green
-colorTo: blue
-sdk: docker
-app_port: 7860
-pinned: false
-license: mit
----
-
 # ♻️ Trash Classification System
 
 [![CI](https://github.com/yutongyu-ai/Trash_Classification_System/actions/workflows/ci.yml/badge.svg)](https://github.com/yutongyu-ai/Trash_Classification_System/actions/workflows/ci.yml)
-[![Live Demo](https://img.shields.io/badge/demo-Hugging%20Face%20Spaces-blue)](https://huggingface.co/spaces/tonghahaha/trashnet-demo)
+[![Live Demo](https://img.shields.io/badge/demo-Streamlit%20Community%20Cloud-blue)](https://share.streamlit.io)
 
 An end-to-end deep learning application for real-time waste image classification using **ResNet18**, **FastAPI**, **Streamlit**, and **Docker**.
 
@@ -167,26 +156,30 @@ checkpoint always takes priority over the hosted one.
 
 # 🌐 Live Demo
 
-A single-container build (root `Dockerfile` + `start.sh`) runs both services
-in one image — FastAPI on an internal `localhost:8000` and Streamlit exposed
-on `7860` — for deployment on [Hugging Face
-Spaces](https://huggingface.co/spaces/tonghahaha/trashnet-demo) (Docker SDK).
-This is separate from the two-container `docker-compose.yml` setup above,
-which is meant for local development.
+`streamlit_app.py` (repo root) is a standalone entry point deployed on
+[Streamlit Community Cloud](https://share.streamlit.io) — it calls
+`backend/inference.py`'s `predict()` directly in-process instead of over
+HTTP, since Community Cloud only runs a single Python process. This is
+separate from `frontend/app.py`, which still talks to the FastAPI backend
+over HTTP and is what `docker-compose.yml` and the "Running Without Docker"
+setup below use — the two-service, API-driven architecture is still the one
+actually developed and tested locally; the Streamlit Cloud version just
+inlines it to fit that platform's single-process constraint.
 
 To deploy your own copy:
 
-```bash
-# 1. Create a new Space at https://huggingface.co/new-space, SDK = Docker
-# 2. Add it as a git remote and push
-git remote add space https://huggingface.co/spaces/<your-username>/<space-name>
-git push space main
-```
+1. Go to [share.streamlit.io](https://share.streamlit.io), sign in with
+   GitHub, and click **New app**.
+2. Pick this repo, branch `main`, and main file path `streamlit_app.py`.
+3. Deploy — dependencies install from the root `requirements.txt`
+   automatically, and the model checkpoint downloads from Hugging Face Hub
+   on first run, same as the Docker setup.
 
-The Space builds from the root `Dockerfile` and reads its title/port/license
-from the YAML frontmatter at the top of this README. No manual config
-needed — the model checkpoint downloads from Hugging Face Hub on first
-startup, same as the Docker Compose setup.
+A root `Dockerfile` + `start.sh` also exist for single-container Docker
+deployment (e.g. Cloud Run, or Hugging Face Spaces on a paid plan — Spaces'
+Docker/Gradio SDKs now require PRO/Team/Enterprise to create, so it's not
+used for the free live demo above). See git history if that path is worth
+revisiting later.
 
 ---
 
@@ -280,8 +273,10 @@ project/
 │
 ├── .github/workflows/ci.yml   # Lint, tests, Docker build check
 ├── docker-compose.yml         # Two-container local dev setup
-├── Dockerfile                 # Single-container build for HF Spaces
+├── Dockerfile                 # Single-container build (Cloud Run, HF Spaces on a paid plan, etc.)
 ├── start.sh                   # Launches backend + frontend in one container
+├── streamlit_app.py           # Streamlit Community Cloud entry point (in-process inference)
+├── requirements.txt           # Deps for streamlit_app.py on Streamlit Community Cloud
 ├── hpo.py                     # Hyperparameter optimization
 ├── train.py                   # Training script
 ├── train_hpo.slurm            # SLURM job spec for HPC training
