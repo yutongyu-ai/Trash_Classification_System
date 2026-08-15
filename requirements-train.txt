@@ -1,0 +1,13 @@
+# Versions pinned to what's verified working in the HPC `trashnet` conda env.
+# That env actually uses torch==2.5.1+cu121 / torchvision==0.20.1+cu121 (GPU
+# build); the plain version numbers below need to be installed with
+# --index-url https://download.pytorch.org/whl/cu121 to get the GPU build.
+torch==2.5.1
+torchvision==0.20.1
+optuna==4.9.0
+numpy==2.4.4
+Pillow==12.2.0
+scikit-learn==1.9.0
+pandas==3.0.5
+matplotlib==3.11.1
+seaborn==0.13.2
