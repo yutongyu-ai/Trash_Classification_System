@@ -1,0 +1,21 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+.git
+.idea
+.ruff_cache
+.pytest_cache
+
+venv
+.env
+
+# Dataset / training artifacts — not needed for the inference-only Space image
+data/
+checkpoints/
+outputs/
+logs/
+
+tests/
+docs/

@@ -1,9 +1,14 @@
 import io
+import os
 import requests
 import streamlit as st
 from PIL import Image
 
-API_URL = "http://backend:8000/predict"
+# Defaults to localhost, which is correct for the single-container HF Spaces
+# deployment and for running both services on the same machine without
+# Docker. docker-compose overrides this to the "backend" service hostname
+# for the two-container local dev setup.
+API_URL = os.environ.get("BACKEND_URL", "http://localhost:8000/predict")
 
 # ===== TrashNet Classes =====
 CLASS_INFO = {

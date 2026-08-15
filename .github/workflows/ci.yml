@@ -68,3 +68,5 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker build ./backend
       - run: docker build ./frontend
+      - name: Build single-container image (HF Spaces deployment)
+        run: docker build .
