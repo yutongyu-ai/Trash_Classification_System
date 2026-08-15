@@ -1,20 +1,20 @@
+import os
 import torch
 import optuna
 import torch.nn as nn
 import torch.optim as optim
 import csv
-import yaml
 import numpy as np
 
-# from hpo import objective
+from hpo import build_objective
 from train import train, val_test
 from utils.visualization import plot_train_val, plot_confusion_matrix
-from utils.datasets import get_trashnet_train, get_trashnet_test
+from utils.datasets import get_trashnet_train, get_trashnet_test, get_class_weights
 from backend.models.resnet18 import get_model
 
-def load_config(path="configs/config.yaml"):
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+DEVICE = "cuda"       # falls back to CPU automatically if unavailable
+DATA_ROOT = "./data"
+NUM_WORKERS = 4
 
 
 def get_predictions(model, loader, device):
@@ -35,39 +35,76 @@ def get_predictions(model, loader, device):
 
 def main():
 
-    cfg = load_config()
-    device = torch.device(
-        cfg['train']['device'] if torch.cuda.is_available() else "cpu"
-    )
+    os.makedirs("outputs", exist_ok=True)
+    os.makedirs("checkpoints", exist_ok=True)
 
-    train_loader, val_loader = get_trashnet_train(batch_size=cfg['train']["batch_size"])
-    test_loader = get_trashnet_test(batch_size=cfg['train']["batch_size"])
+    device = torch.device(DEVICE if torch.cuda.is_available() else "cpu")
+
+    # Initial loaders just to inspect the dataset (triggers the train/val/test
+    # split on first run) and compute class weights; batch_size gets
+    # overridden below once HPO picks one.
+    train_loader, val_loader = get_trashnet_train(
+        data_root=DATA_ROOT, batch_size=32, num_workers=NUM_WORKERS
+    )
+    test_loader = get_trashnet_test(
+        data_root=DATA_ROOT, batch_size=32, num_workers=NUM_WORKERS
+    )
     num_classes = len(train_loader.dataset.classes)
+    class_weights = get_class_weights(train_loader.dataset)
+
+    # ---- Hyperparameter search ----
+    # Short trials (few epochs each) just to rank configurations; the winner
+    # gets a full-length training run below. Trials use full_num_epochs
+    # (matching the final run) as the CosineAnnealingLR T_max, so the first
+    # hpo_epochs of a trial mirror the start of the eventual full run
+    # instead of being their own fully-annealed short schedule.
+    n_hpo_trials = 25
+    hpo_epochs = 6
+    full_num_epochs = 30
+    objective = build_objective(
+        num_classes=num_classes,
+        class_weights=class_weights,
+        num_epochs=hpo_epochs,
+        full_num_epochs=full_num_epochs,
+        device=device,
+        data_root=DATA_ROOT,
+        num_workers=NUM_WORKERS,
+    )
+    study = optuna.create_study(direction="maximize")
+    study.optimize(objective, n_trials=n_hpo_trials)
+
+    print("Best HPO trial:")
+    print(f"  val_acc: {study.best_trial.value:.4f}")
+    print(f"  params: {study.best_trial.params}")
+
+    best_params = study.best_trial.params
+
+    # ---- Final training with the best hyperparameters found above ----
+    train_loader, val_loader = get_trashnet_train(
+        data_root=DATA_ROOT, batch_size=best_params["batch_size"], num_workers=NUM_WORKERS
+    )
+    test_loader = get_trashnet_test(
+        data_root=DATA_ROOT, batch_size=best_params["batch_size"], num_workers=NUM_WORKERS
+    )
 
     model = get_model(num_classes=num_classes)
     model = model.to(device)
 
     # Loss function and optimizer
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))
     optimizer = torch.optim.AdamW(
         model.parameters(),
-        lr=float(cfg['optimizer']["lr"]),
-        weight_decay=1e-4
+        lr=best_params["lr"],
+        weight_decay=best_params["weight_decay"]
     )
+    num_epochs = full_num_epochs
     scheduler = optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
-        T_max=30,
+        T_max=num_epochs,
         eta_min=1e-5
     )
 
-    # study = optuna.create_study(direction="minimize")
-    # study.optimize(objective, n_trials=20)
-    #
-    # print("Best Trial:")
-    # print(study.best_trial.params)
-
     # Train and validate the model
-    num_epochs = 30
     best_val_acc = -1
     log_file = "./outputs/trashnet_training_log.csv"
     with open(log_file, "w", newline="") as f:
@@ -101,7 +138,7 @@ def main():
     test_loss, test_acc = val_test(model, test_loader, criterion, device)
 
     # Generate plots
-    classes = [str(i) for i in range(10)]
+    classes = train_loader.dataset.classes
     y_true, y_pred = get_predictions(model, test_loader, device)
     cm_save_path = "./outputs/trashnet_confusion_matrix.png"
     plot_confusion_matrix(y_true, y_pred, classes, cm_save_path)

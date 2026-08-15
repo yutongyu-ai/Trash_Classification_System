@@ -1,26 +1,9 @@
 import pandas as pd
 import matplotlib
-matplotlib.use('TkAgg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
-
-
-def plot_predictions(dataset, y_pred, num_images=4, save_path=None):
-    """
-    Visualize predicted results
-    """
-    plt.figure(figsize=(6, 6))
-    for i in range(min(num_images, len(dataset))):
-        img, label = dataset[i]
-        pred = y_pred[i]
-        plt.subplot(2, 2, i + 1)
-        plt.imshow(img)
-        plt.title(f"GT: {label}, Pred: {pred}", color="green" if label == pred else "red")
-        plt.axis("off")
-    plt.tight_layout()
-    if save_path:
-        plt.savefig(save_path)
 
 
 def plot_confusion_matrix(y_true, y_pred, classes, save_path):

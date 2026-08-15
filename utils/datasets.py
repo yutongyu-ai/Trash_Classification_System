@@ -5,6 +5,8 @@
 import os
 import random
 import shutil
+from collections import Counter
+import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
@@ -14,17 +16,21 @@ def _split_dataset(
     val_dir,
     test_dir,
     train_ratio=0.7,
-    val_ratio=0.15
+    val_ratio=0.15,
+    seed=42
 ):
 
     if all(os.path.exists(d) and len(os.listdir(d)) > 0
            for d in [train_dir, val_dir, test_dir]):
         return
 
-    os.makedirs(train_dir, exist_ok=True)
-    os.makedirs(val_dir, exist_ok=True)
-    os.makedirs(test_dir, exist_ok=True)
+    # Wipe any partial split before regenerating, so a previous incomplete
+    # run can't leave stale files that end up duplicated across train/val/test.
+    for d in [train_dir, val_dir, test_dir]:
+        shutil.rmtree(d, ignore_errors=True)
+        os.makedirs(d, exist_ok=True)
 
+    rng = random.Random(seed)
     classes = os.listdir(raw_dir)
 
     for cls in classes:
@@ -37,7 +43,7 @@ def _split_dataset(
         os.makedirs(os.path.join(test_dir, cls), exist_ok=True)
 
         images = os.listdir(cls_path)
-        random.shuffle(images)
+        rng.shuffle(images)
 
         n = len(images)
         train_end = int(n * train_ratio)
@@ -128,4 +134,25 @@ def get_trashnet_test(
     )
 
     return test_loader
+
+
+def get_class_weights(dataset):
+    """
+    Inverse-frequency class weights for an ImageFolder-style dataset, for
+    use with nn.CrossEntropyLoss(weight=...) on imbalanced data (TrashNet's
+    "trash" class has ~3.6x fewer images than "paper").
+
+    weight_i = N / (K * n_i), so a perfectly balanced dataset yields all
+    weights == 1.
+    """
+    counts = Counter(dataset.targets)
+    num_classes = len(dataset.classes)
+    total = len(dataset.targets)
+
+    weights = torch.zeros(num_classes)
+    for cls_idx in range(num_classes):
+        count = counts.get(cls_idx, 0)
+        weights[cls_idx] = total / (num_classes * count) if count > 0 else 0.0
+
+    return weights
 
