@@ -8,7 +8,8 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      - ./checkpoints:/app/checkpoints
+      - ./checkpoints:/checkpoints
+      - hf-cache:/root/.cache/huggingface
     restart: always
 
   frontend:
@@ -22,3 +23,9 @@ services:
     depends_on:
       - backend
     restart: always
+
+volumes:
+  # Caches the checkpoint downloaded from Hugging Face Hub (when no local
+  # ./checkpoints/best_resnet18_trashnet.pth is present) so it survives
+  # container restarts instead of re-downloading every time.
+  hf-cache:

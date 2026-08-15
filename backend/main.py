@@ -1,21 +1,33 @@
 import io
 import time
+from contextlib import asynccontextmanager
+
 from PIL import Image
 import torch
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 
-from inference import predict
+from inference import predict, load_model
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Load (or download from HF Hub) once at startup so a missing/broken
+    # checkpoint fails loudly here instead of on a user's first request.
+    load_model()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.get("/")
 def root():
@@ -23,7 +35,7 @@ def root():
 
 @app.post("/predict")
 async def predict_api(file: UploadFile = File(...)):
-    if not file.content_type.startswith("image/"):
+    if not file.content_type or not file.content_type.startswith("image/"):
         return {"error": "File must be an image"}
 
     start_time = time.perf_counter()
@@ -46,12 +58,3 @@ async def predict_api(file: UploadFile = File(...)):
         **result,
         "latency_ms": round(latency, 2)
     }
-
-
-
-
-
-
-
-
-
