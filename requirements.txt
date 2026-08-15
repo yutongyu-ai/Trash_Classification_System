@@ -1,6 +1,15 @@
 # Deps for streamlit_app.py, the Streamlit Community Cloud entry point.
-# Reuses backend/requirements.txt so the inference stack (torch version,
-# etc.) never drifts from what's actually tested via Docker/docker-compose.
--r backend/requirements.txt
-
+#
+# Intentionally diverges from backend/requirements.txt: Streamlit Cloud's
+# package index doesn't have torch==2.5.1 (the version actually verified via
+# docker-compose/HPC) — installs fail there with "No matching distribution
+# found for torch==2.5.1" regardless of Python version. So this pins the
+# newest available pair instead (torchvision 0.28.0 requires torch==2.13.0
+# exactly). Only inference-time deps are listed — no fastapi/uvicorn/
+# scikit-learn, since streamlit_app.py doesn't use the FastAPI service.
+torch==2.13.0
+torchvision==0.28.0
+huggingface_hub
+numpy
+Pillow
 streamlit
