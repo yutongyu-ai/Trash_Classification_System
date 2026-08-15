@@ -12,10 +12,12 @@ data/
 
 # Model checkpoints
 checkpoints/
-backend/checkpoints/
 
 # Outputs
 outputs/
+
+# SLURM job logs
+logs/
 
 # Logs
 *.log
