@@ -68,3 +68,31 @@ def test_predict_rejects_corrupted_image_bytes(monkeypatch):
     assert response.status_code == 200
     assert "error" in response.json()
     fake_predict.assert_not_called()
+
+
+def test_predict_rejects_oversized_file(monkeypatch):
+    client, fake_predict = _make_client(monkeypatch)
+    oversized = b"\x00" * (backend_main.MAX_UPLOAD_BYTES + 1)
+    with client:
+        response = client.post(
+            "/predict",
+            files={"file": ("image.png", oversized, "image/png")},
+        )
+    assert response.status_code == 200
+    assert "error" in response.json()
+    fake_predict.assert_not_called()
+
+
+def test_predict_rejects_oversized_dimensions(monkeypatch):
+    client, fake_predict = _make_client(monkeypatch)
+    buf = io.BytesIO()
+    dim = backend_main.MAX_IMAGE_DIMENSION + 1
+    Image.new("RGB", (dim, dim), color=(10, 20, 30)).save(buf, format="PNG")
+    with client:
+        response = client.post(
+            "/predict",
+            files={"file": ("image.png", buf.getvalue(), "image/png")},
+        )
+    assert response.status_code == 200
+    assert "error" in response.json()
+    fake_predict.assert_not_called()

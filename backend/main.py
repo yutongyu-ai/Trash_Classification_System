@@ -9,6 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from inference import predict, load_model
 
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+MAX_IMAGE_DIMENSION = 4096  # px, per side — plenty for a phone photo
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -41,11 +44,18 @@ async def predict_api(file: UploadFile = File(...)):
     start_time = time.perf_counter()
 
     image_bytes = await file.read()
+    if len(image_bytes) > MAX_UPLOAD_BYTES:
+        return {"error": f"File too large: max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB"}
 
     try:
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     except Exception as e:
         return {"error": f"Invalid image file: {e}"}
+
+    if image.width > MAX_IMAGE_DIMENSION or image.height > MAX_IMAGE_DIMENSION:
+        return {
+            "error": f"Image dimensions too large: max {MAX_IMAGE_DIMENSION}x{MAX_IMAGE_DIMENSION}px"
+        }
 
     result = predict(image)
 
