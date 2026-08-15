@@ -1,5 +1,7 @@
 # ♻️ Trash Classification System
 
+[![CI](https://github.com/yutongyu-ai/Trash_Classification_System/actions/workflows/ci.yml/badge.svg)](https://github.com/yutongyu-ai/Trash_Classification_System/actions/workflows/ci.yml)
+
 An end-to-end deep learning application for real-time waste image classification using **ResNet18**, **FastAPI**, **Streamlit**, and **Docker**.
 
 The system classifies waste images into six categories from the TrashNet dataset and provides an interactive web interface for inference. The project is fully containerized for portable and scalable deployment.
@@ -101,6 +103,15 @@ The `backend` service runs CPU-only inference by default. For a single-image
 ResNet18 forward pass, CPU latency is generally fine for interactive use; GPU
 acceleration mainly pays off for batch training/inference, not this service.
 
+## Model Weights
+
+No manual setup needed — on first startup, `backend` automatically downloads
+the trained checkpoint from
+[Hugging Face Hub](https://huggingface.co/tonghahaha/trashnet-resnet18) if
+`checkpoints/best_resnet18_trashnet.pth` isn't already present locally (e.g.
+from running your own training via `train_hpo.slurm` / `main.py`). A local
+checkpoint always takes priority over the hosted one.
+
 ---
 
 # ⚙️ Installation
@@ -108,8 +119,8 @@ acceleration mainly pays off for batch training/inference, not this service.
 ## 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/trash-classification-system.git
-cd trash-classification-system
+git clone https://github.com/yutongyu-ai/Trash_Classification_System.git
+cd Trash_Classification_System
 ```
 
 ---
@@ -173,7 +184,6 @@ The model training pipeline includes:
 project/
 │
 ├── backend/
-│   ├── checkpoints/          # Model checkpoints used for inference
 │   ├── models/               # Model architecture and utilities
 │   ├── Dockerfile
 │   ├── inference.py          # Inference pipeline
@@ -185,12 +195,11 @@ project/
 │   ├── Dockerfile
 │   └── requirements.txt
 │
-├── configs/                  # Training and experiment configs
-├── data/                     # Dataset directory
-├── outputs/                  # Training outputs and logs
-├── utils/                    # Utility functions
+├── checkpoints/               # Model checkpoints (used for both training output and inference)
+├── data/                      # Dataset directory
+├── outputs/                   # Training outputs and logs
+├── utils/                     # Utility functions
 │
-├── .dockerignore
 ├── docker-compose.yml
 ├── hpo.py                    # Hyperparameter optimization
 ├── train.py                  # Training script

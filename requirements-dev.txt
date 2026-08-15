@@ -1,0 +1,7 @@
+# Dev/CI-only tools, on top of the app's own dependencies. Not part of the
+# production image (backend/Dockerfile only installs backend/requirements.txt).
+-r backend/requirements.txt
+
+pytest
+httpx
+ruff

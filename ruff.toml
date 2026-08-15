@@ -1,0 +1,5 @@
+# Scoped to catch real bugs (syntax errors, undefined names, unused
+# imports/variables) rather than enforcing a style preference across the
+# whole existing codebase.
+[lint]
+select = ["E9", "F"]
