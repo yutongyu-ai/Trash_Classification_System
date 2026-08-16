@@ -15,7 +15,7 @@ The system classifies waste images into six categories from the TrashNet dataset
 - Real-time inference with FastAPI backend
 - Interactive Streamlit frontend
 - Dockerized full-stack deployment
-- Low-latency prediction pipeline (~60ms steady-state latency)
+- Low-latency prediction pipeline (33ms ± 9ms per request, CPU inference)
 - Clean modular project structure
 - Portable and reproducible environment
 
@@ -30,7 +30,13 @@ The system classifies waste images into six categories from the TrashNet dataset
 | Classes | 6 |
 | Best Validation Accuracy | 94.4% (epoch 17/30) |
 | Test Accuracy | 94.0% (360/383 images) |
-| Inference Latency | ~60 ms |
+| Inference Latency | 33ms ± 9ms (mean ± std, N=30) |
+
+Latency measured end-to-end through the `/predict` endpoint (upload →
+decode → preprocess → forward pass → response), 30 requests after 5
+discarded warm-up requests, against the Dockerized FastAPI backend on
+WSL2, CPU inference — matches the actual deployed serving path rather
+than a bare model benchmark.
 
 ## Per-Class Results (test set, 383 images)
 
