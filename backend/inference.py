@@ -13,7 +13,7 @@ LOCAL_MODEL_PATH = BASE_DIR.parent / "checkpoints" / "best_resnet18_trashnet.pth
 HF_REPO_ID = "tonghahaha/trashnet-resnet18"
 HF_FILENAME = "best_resnet18_trashnet.pth"
 
-CLASSES = ['cardboard', 'glass', 'metal', 'paper', 'plastic', 'trash']
+CLASSES = ['cardboard', 'glass', 'metal', 'paper', 'plastic', 'General Waste']
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 

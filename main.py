@@ -43,9 +43,8 @@ def main():
 
     device = torch.device(DEVICE if torch.cuda.is_available() else "cpu")
 
-    # Initial loaders just to inspect the dataset (triggers the train/val/test
-    # split on first run) and compute class weights; batch_size gets
-    # overridden below once HPO picks one.
+    # Initial loaders to trigger the split and get class weights;
+    # batch_size gets overridden below once HPO picks one.
     train_loader, val_loader = get_trashnet_train(
         data_root=DATA_ROOT, batch_size=32, num_workers=NUM_WORKERS
     )
@@ -56,11 +55,9 @@ def main():
     class_weights = get_class_weights(train_loader.dataset)
 
     # ---- Hyperparameter search ----
-    # Short trials (few epochs each) just to rank configurations; the winner
-    # gets a full-length training run below. Trials use full_num_epochs
-    # (matching the final run) as the CosineAnnealingLR T_max, so the first
-    # hpo_epochs of a trial mirror the start of the eventual full run
-    # instead of being their own fully-annealed short schedule.
+    # Short trials just rank configs; T_max uses full_num_epochs (not
+    # hpo_epochs) so a trial's LR schedule mirrors the start of the eventual
+    # full run instead of its own fully-annealed short one (see hpo.py).
     n_hpo_trials = 25
     hpo_epochs = 6
     full_num_epochs = 30
@@ -96,7 +93,7 @@ def main():
 
     # Loss function and optimizer
     criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))
-    optimizer = torch.optim.AdamW(
+    optimizer = optim.AdamW(
         model.parameters(),
         lr=best_params["lr"],
         weight_decay=best_params["weight_decay"]
@@ -120,33 +117,32 @@ def main():
             writer = csv.writer(f)
             writer.writerow(["epoch", "train_loss", "train_acc", "val_loss", "val_acc"])
 
-        for epoch in range(num_epochs):
-            train_loss, train_acc = train(model, train_loader, criterion, optimizer, device)
-            val_loss, val_acc = val_test(model, val_loader, criterion, device)
+            for epoch in range(num_epochs):
+                train_loss, train_acc = train(model, train_loader, criterion, optimizer, device)
+                val_loss, val_acc = val_test(model, val_loader, criterion, device)
 
-            with open(log_file, "a", newline="") as f:
-                writer = csv.writer(f)
                 writer.writerow([epoch, train_loss, train_acc, val_loss, val_acc])
+                f.flush()
 
-            print(f"Epoch [{epoch + 1}/{num_epochs}] "
-                  f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f} "
-                  f"| Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
+                print(f"Epoch [{epoch + 1}/{num_epochs}] "
+                      f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f} "
+                      f"| Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
 
-            mlflow.log_metrics(
-                {
-                    "train_loss": train_loss,
-                    "train_acc": train_acc,
-                    "val_loss": val_loss,
-                    "val_acc": val_acc,
-                },
-                step=epoch,
-            )
+                mlflow.log_metrics(
+                    {
+                        "train_loss": train_loss,
+                        "train_acc": train_acc,
+                        "val_loss": val_loss,
+                        "val_acc": val_acc,
+                    },
+                    step=epoch,
+                )
 
-            if val_acc > best_val_acc:
-                best_val_acc = val_acc
-                torch.save(model.state_dict(), "checkpoints/best_resnet18_trashnet.pth")
+                if val_acc > best_val_acc:
+                    best_val_acc = val_acc
+                    torch.save(model.state_dict(), "checkpoints/best_resnet18_trashnet.pth")
 
-            scheduler.step()
+                scheduler.step()
 
         # Test the model
         model.load_state_dict(
@@ -157,7 +153,9 @@ def main():
         test_loss, test_acc = val_test(model, test_loader, criterion, device)
 
         # Generate plots
-        classes = train_loader.dataset.classes
+        # Translate raw folder name to the app's display name (see ui.py/inference.py).
+        DISPLAY_NAMES = {"trash": "General Waste"}
+        classes = [DISPLAY_NAMES.get(c, c) for c in train_loader.dataset.classes]
         y_true, y_pred = get_predictions(model, test_loader, device)
         cm_save_path = "./outputs/trashnet_confusion_matrix.png"
         plot_confusion_matrix(y_true, y_pred, classes, cm_save_path)
@@ -177,13 +175,8 @@ def main():
         mlflow.log_artifact(loss_path)
         mlflow.log_artifact(acc_path)
         mlflow.log_artifact("checkpoints/best_resnet18_trashnet.pth")
-        # MLflow 3.x defaults mlflow.pytorch.log_model to the 'pt2'
-        # (torch.export traced-graph) serialization format, which needs an
-        # input_example *and* a TensorSpec-typed signature to trace
-        # model.forward with. Simpler and more battle-tested to just use
-        # the traditional pickle-based format instead — no tracing, no
-        # signature-shape gymnastics. Shape matches inference.py's
-        # transform output: a single 224x224 RGB image.
+        # MLflow 3.x's default 'pt2' serialization needs tracing/signature
+        # gymnastics; serialization_format="pickle" avoids that.
         input_example = torch.randn(1, 3, 224, 224, device=device)
         mlflow.pytorch.log_model(
             model, name="model", input_example=input_example, serialization_format="pickle"

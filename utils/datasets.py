@@ -1,7 +1,3 @@
-# =====================================
-# TrashNet dataset loading utilities
-# =====================================
-
 import os
 import random
 import shutil
@@ -117,7 +113,12 @@ def get_trashnet_test(
     num_workers=2,
     image_size=224
 ):
+    raw_dir = os.path.join(data_root, "trashnet", "dataset-resized")
+    train_dir = os.path.join(data_root, "trashnet", "train")
+    val_dir = os.path.join(data_root, "trashnet", "val")
     test_dir = os.path.join(data_root, "trashnet", "test")
+
+    _split_dataset(raw_dir, train_dir, val_dir, test_dir)
 
     transform = transforms.Compose([
         transforms.Resize((image_size, image_size)),
@@ -138,12 +139,9 @@ def get_trashnet_test(
 
 def get_class_weights(dataset):
     """
-    Inverse-frequency class weights for an ImageFolder-style dataset, for
-    use with nn.CrossEntropyLoss(weight=...) on imbalanced data (TrashNet's
-    "trash" class has ~3.6x fewer images than "paper").
-
-    weight_i = N / (K * n_i), so a perfectly balanced dataset yields all
-    weights == 1.
+    Inverse-frequency class weights (weight_i = N/(K*n_i)) for
+    nn.CrossEntropyLoss(weight=...) — TrashNet's raw "trash" folder (shown
+    as "General Waste" in the app) has ~3.6x fewer images than "paper".
     """
     counts = Counter(dataset.targets)
     num_classes = len(dataset.classes)

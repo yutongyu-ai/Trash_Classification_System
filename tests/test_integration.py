@@ -10,12 +10,9 @@ import main as backend_main
 
 @pytest.mark.integration
 def test_predict_end_to_end_downloads_real_model():
-    """Exercises the real path: no monkeypatching, so this actually
-    downloads the checkpoint from https://huggingface.co/tonghahaha/trashnet-resnet18
-    (if no local checkpoints/best_resnet18_trashnet.pth is present) and runs
-    a real forward pass. Marked `integration` so a temporary Hugging Face
-    Hub outage doesn't block a PR — see the CI workflow.
-    """
+    """No monkeypatching — downloads the real checkpoint from HF Hub (if no
+    local checkpoint is present) and runs a real forward pass. Marked
+    `integration` so a temporary HF Hub outage doesn't block a PR."""
     inference._model = None
 
     buf = io.BytesIO()

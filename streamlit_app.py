@@ -2,11 +2,9 @@ import sys
 import time
 from pathlib import Path
 
-# Streamlit Community Cloud runs a single Python process, so this calls
-# backend/inference.py's predict() directly instead of over HTTP.
-# frontend/app.py is the HTTP-based version used with docker-compose and
-# local no-Docker dev — see README's "Live Demo" section. Both share the
-# same page layout from frontend/ui.py.
+# Streamlit Community Cloud runs a single process, so this calls
+# inference.predict() directly instead of over HTTP (frontend/app.py is the
+# HTTP version — see README's "Live Demo"). Both share frontend/ui.py.
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(ROOT / "frontend"))

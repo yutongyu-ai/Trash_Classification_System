@@ -27,7 +27,5 @@ services:
     restart: always
 
 volumes:
-  # Caches the checkpoint downloaded from Hugging Face Hub (when no local
-  # ./checkpoints/best_resnet18_trashnet.pth is present) so it survives
-  # container restarts instead of re-downloading every time.
+  # Caches the HF Hub checkpoint download across container restarts.
   hf-cache:

@@ -13,14 +13,11 @@ CLASS_INFO = {
     "metal": "🥫 Metal",
     "paper": "📄 Paper",
     "plastic": "🧴 Plastic",
-    "trash": "🗑️ General Waste",
+    "General Waste": "🗑️ General Waste",
 }
 
-# Below this, the model's top prediction is shown as a low-confidence
-# warning with runner-up candidates instead of a plain success message —
-# on a ~2,500-image dataset like TrashNet, a prediction this close to the
-# 6-class random baseline (16.7%) isn't reliable enough to present as a
-# confident answer.
+# Below this, show a low-confidence warning + runner-up candidates instead
+# of a plain success — too close to the 6-class random baseline (16.7%).
 CONFIDENCE_THRESHOLD = 0.5
 
 

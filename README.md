@@ -28,8 +28,8 @@ The system classifies waste images into six categories from the TrashNet dataset
 | Model Architecture | ResNet18 |
 | Dataset | TrashNet |
 | Classes | 6 |
-| Best Validation Accuracy | 95.2% (epoch 25/30) |
-| Test Accuracy | 94.3% (361/383 images) |
+| Best Validation Accuracy | 94.4% (epoch 19/30) |
+| Test Accuracy | 92.2% (353/383 images) |
 | Inference Latency | ~60 ms |
 
 ## Per-Class Results (test set, 383 images)
@@ -40,22 +40,22 @@ and logged as an MLflow artifact (`classification_report.json`) — see
 
 | Class | Support | Precision | Recall | F1 |
 |---|---|---|---|---|
-| cardboard | 61 | 96.8% | 98.4% | 97.6% |
-| glass | 76 | 94.9% | 97.4% | 96.1% |
-| metal | 62 | 91.0% | 98.4% | 94.6% |
-| paper | 90 | 96.6% | 94.4% | 95.5% |
-| plastic | 73 | 96.9% | 84.9% | 90.5% |
-| trash | 21 | 79.2% | 90.5% | 84.4% |
+| cardboard | 61 | 98.3% | 95.1% | 96.7% |
+| glass | 76 | 89.7% | 92.1% | 90.9% |
+| metal | 62 | 88.2% | 96.8% | 92.3% |
+| paper | 90 | 97.6% | 90.0% | 93.7% |
+| plastic | 73 | 89.0% | 89.0% | 89.0% |
+| General Waste | 21 | 86.4% | 90.5% | 88.4% |
 
-`trash` has the weakest precision and by far the fewest test examples (21,
-vs. 61-90 for the others); `plastic` has the weakest recall despite having
-plenty of support, so that gap looks more like genuine visual overlap with
-another class (its confusion matrix column is worth checking) than a
+`General Waste` has the weakest precision and by far the fewest test examples
+(21, vs. 61-90 for the others); `plastic` has the weakest recall despite
+having plenty of support, so that gap looks more like genuine visual overlap
+with another class (its confusion matrix column is worth checking) than a
 data-volume problem. TrashNet's class imbalance is handled during training
 via inverse-frequency class weighting (`utils/datasets.py::get_class_weights`),
-which helps the training signal, but 21 `trash` test images is still a
-small sample to generalize from — more `trash`-class data would likely
-help more than further loss reweighting at this point.
+which helps the training signal, but 21 `General Waste` test images is still
+a small sample to generalize from — more `General Waste`-class data would
+likely help more than further loss reweighting at this point.
 
 ![Confusion matrix](docs/eval/trashnet_confusion_matrix.png)
 
@@ -67,7 +67,7 @@ loss flattening (while training loss keeps dropping) are signs of
 overfitting on this small (~2,500 image) dataset, despite the
 augmentation (random flip/rotation) and dropout (p=0.5) already in the
 training pipeline. The checkpoint actually shipped is whichever epoch had
-the best validation accuracy (epoch 25 here), not the final epoch, so this
+the best validation accuracy (epoch 19 here), not the final epoch, so this
 doesn't directly hurt the deployed model's accuracy — but it's a signal
 that stronger augmentation, partial backbone freezing, or more data would
 likely generalize better than training longer.
@@ -87,7 +87,7 @@ The model classifies images into the following categories:
 - 🥫 Metal
 - 📄 Paper
 - 🧴 Plastic
-- 🗑️ Trash
+- 🗑️ General Waste
 
 ---
 

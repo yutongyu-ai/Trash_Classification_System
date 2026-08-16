@@ -21,30 +21,17 @@ def build_objective(
     """
     Build an Optuna objective for fine-tuning ResNet18 on TrashNet.
 
-    Search space (kept to training hyperparameters only, not model
-    architecture, so every trial produces a checkpoint with the same shape
-    that backend/inference.py already expects to load):
-      - lr: log-uniform 1e-4 .. 3e-3
-        Typical AdamW fine-tuning range for a pretrained CNN backbone;
-        the existing 30-epoch run used 3e-4 and got ~92-95% val acc, so
-        this brackets that with room on both sides.
-      - weight_decay: log-uniform 1e-5 .. 1e-2
-        Wide range since TrashNet is small (~2.5k images) and prone to
-        overfitting (train acc hit ~99.5% vs val acc ~92-94% previously).
-      - batch_size: {16, 32, 64}
-        Dataset is small, so batch size mainly trades off gradient noise
-        vs. steps per epoch rather than throughput.
+    Search space is training hyperparameters only (not architecture, so
+    every trial's checkpoint shape matches what backend/inference.py
+    expects): lr (log-uniform 1e-4..3e-3, bracketing the known-good 3e-4),
+    weight_decay (log-uniform 1e-5..1e-2, wide since TrashNet is small and
+    overfits easily), batch_size ({16, 32, 64}).
 
-    Uses AdamW + CosineAnnealingLR to match the final training recipe in
-    main.py, so a trial's ranking is representative of how it will actually
-    perform once trained for the full run. `T_max` is set to
-    `full_num_epochs` (the final run's epoch count), not `num_epochs` (the
-    trial's shortened epoch count) — a trial only runs the first
-    `num_epochs` steps of that schedule, so its LR trajectory matches the
-    *start* of the eventual full run instead of being its own fully
-    annealed 6-epoch schedule. Without this, a trial's "best" lr reflects
-    what works when annealed to near-zero in 6 steps, not what works
-    during the first 6 steps of a slower 30-step anneal.
+    Uses AdamW + CosineAnnealingLR matching main.py's final recipe, with
+    T_max=full_num_epochs (not the trial's shortened num_epochs) so a
+    trial's LR trajectory mirrors the *start* of the full run rather than
+    being its own fully-annealed short schedule — otherwise a trial's
+    "best" lr wouldn't transfer to the real training run.
     """
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     class_weights = class_weights.to(device)
@@ -105,22 +92,3 @@ def build_objective(
         return best_val_acc
 
     return objective
-
-
-if __name__ == "__main__":
-    from utils.datasets import get_class_weights
-
-    mlflow.set_experiment("trashnet-hpo")
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    train_loader, _ = get_trashnet_train()
-    num_classes = len(train_loader.dataset.classes)
-    class_weights = get_class_weights(train_loader.dataset)
-
-    objective = build_objective(num_classes, class_weights, num_epochs=6, device=device)
-    study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=25)
-
-    print("Best Trial:")
-    print(f"  val_acc: {study.best_trial.value:.4f}")
-    print(f"  params: {study.best_trial.params}")

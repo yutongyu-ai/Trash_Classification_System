@@ -16,10 +16,7 @@ checkpoints/
 # Outputs
 outputs/
 
-# MLflow local tracking store — mlflow.db is a SQLite DB of run history
-# (params/metrics/tags); mlruns/ still holds the actual logged files
-# (plots, checkpoints, the logged model) even though MLflow 3.x moved
-# params/metrics out of the old mlruns/-as-everything file store.
+# MLflow local store: mlflow.db (SQLite, params/metrics) + mlruns/ (artifacts/models)
 mlflow.db
 mlruns/
 
