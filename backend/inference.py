@@ -56,10 +56,15 @@ def predict(image: Image.Image):
 
         probs = torch.softmax(outputs, dim=1)
         pred = torch.argmax(probs, dim=1).item()
+        top3 = torch.topk(probs[0], k=min(3, len(CLASSES)))
 
         return {
             "class": CLASSES[pred],
-            "confidence": float(probs[0][pred])
+            "confidence": float(probs[0][pred]),
+            "top3": [
+                {"class": CLASSES[i], "confidence": float(p)}
+                for p, i in zip(top3.values.tolist(), top3.indices.tolist())
+            ],
         }
 
     except Exception:

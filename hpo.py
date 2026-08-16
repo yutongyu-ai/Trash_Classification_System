@@ -1,3 +1,4 @@
+import mlflow
 import optuna
 import torch
 import torch.nn as nn
@@ -53,32 +54,53 @@ def build_objective(
         weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-2, log=True)
         batch_size = trial.suggest_categorical("batch_size", [16, 32, 64])
 
-        model = get_model(num_classes=num_classes).to(device)
-        criterion = nn.CrossEntropyLoss(weight=class_weights)
+        with mlflow.start_run(run_name=f"trial-{trial.number}"):
+            mlflow.log_params({
+                "lr": lr,
+                "weight_decay": weight_decay,
+                "batch_size": batch_size,
+                "trial_number": trial.number,
+            })
 
-        train_loader, val_loader = get_trashnet_train(
-            data_root=data_root, batch_size=batch_size, num_workers=num_workers
-        )
-        optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, T_max=full_num_epochs, eta_min=1e-5
-        )
+            model = get_model(num_classes=num_classes).to(device)
+            criterion = nn.CrossEntropyLoss(weight=class_weights)
 
-        best_val_acc = 0.0
-        for epoch in range(num_epochs):
-            train_loss, train_acc = train(model, train_loader, criterion, optimizer, device)
-            val_loss, val_acc = val_test(model, val_loader, criterion, device)
+            train_loader, val_loader = get_trashnet_train(
+                data_root=data_root, batch_size=batch_size, num_workers=num_workers
+            )
+            optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+            scheduler = optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, T_max=full_num_epochs, eta_min=1e-5
+            )
 
-            print(f"[trial {trial.number}] Epoch [{epoch + 1}/{num_epochs}] "
-                  f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f} "
-                  f"| Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
+            best_val_acc = 0.0
+            for epoch in range(num_epochs):
+                train_loss, train_acc = train(model, train_loader, criterion, optimizer, device)
+                val_loss, val_acc = val_test(model, val_loader, criterion, device)
 
-            trial.report(val_acc, epoch)
-            if trial.should_prune():
-                raise optuna.exceptions.TrialPruned()
+                print(f"[trial {trial.number}] Epoch [{epoch + 1}/{num_epochs}] "
+                      f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f} "
+                      f"| Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
 
-            best_val_acc = max(best_val_acc, val_acc)
-            scheduler.step()
+                mlflow.log_metrics(
+                    {
+                        "train_loss": train_loss,
+                        "train_acc": train_acc,
+                        "val_loss": val_loss,
+                        "val_acc": val_acc,
+                    },
+                    step=epoch,
+                )
+
+                trial.report(val_acc, epoch)
+                if trial.should_prune():
+                    mlflow.set_tag("pruned", True)
+                    raise optuna.exceptions.TrialPruned()
+
+                best_val_acc = max(best_val_acc, val_acc)
+                scheduler.step()
+
+            mlflow.log_metric("best_val_acc", best_val_acc)
 
         return best_val_acc
 
@@ -87,6 +109,8 @@ def build_objective(
 
 if __name__ == "__main__":
     from utils.datasets import get_class_weights
+
+    mlflow.set_experiment("trashnet-hpo")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     train_loader, _ = get_trashnet_train()

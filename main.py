@@ -5,6 +5,9 @@ import torch.nn as nn
 import torch.optim as optim
 import csv
 import numpy as np
+import mlflow
+import mlflow.pytorch
+from sklearn.metrics import classification_report
 
 from hpo import build_objective
 from train import train, val_test
@@ -61,6 +64,7 @@ def main():
     n_hpo_trials = 25
     hpo_epochs = 6
     full_num_epochs = 30
+    mlflow.set_experiment("trashnet-hpo")
     objective = build_objective(
         num_classes=num_classes,
         class_weights=class_weights,
@@ -104,49 +108,86 @@ def main():
         eta_min=1e-5
     )
 
-    # Train and validate the model
-    best_val_acc = -1
-    log_file = "./outputs/trashnet_training_log.csv"
-    with open(log_file, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["epoch", "train_loss", "train_acc", "val_loss", "val_acc"])
+    mlflow.set_experiment("trashnet-final-training")
+    with mlflow.start_run(run_name="final-training"):
+        mlflow.log_params(best_params)
+        mlflow.log_param("num_epochs", num_epochs)
 
-    for epoch in range(num_epochs):
-        train_loss, train_acc = train(model, train_loader, criterion, optimizer, device)
-        val_loss, val_acc = val_test(model, val_loader, criterion, device)
-
-        with open(log_file, "a", newline="") as f:
+        # Train and validate the model
+        best_val_acc = -1
+        log_file = "./outputs/trashnet_training_log.csv"
+        with open(log_file, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow([epoch, train_loss, train_acc, val_loss, val_acc])
+            writer.writerow(["epoch", "train_loss", "train_acc", "val_loss", "val_acc"])
 
-        print(f"Epoch [{epoch + 1}/{num_epochs}] "
-              f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f} "
-              f"| Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
+        for epoch in range(num_epochs):
+            train_loss, train_acc = train(model, train_loader, criterion, optimizer, device)
+            val_loss, val_acc = val_test(model, val_loader, criterion, device)
 
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            torch.save(model.state_dict(), "checkpoints/best_resnet18_trashnet.pth")
+            with open(log_file, "a", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow([epoch, train_loss, train_acc, val_loss, val_acc])
 
-        scheduler.step()
+            print(f"Epoch [{epoch + 1}/{num_epochs}] "
+                  f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f} "
+                  f"| Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
 
-    # Test the model
-    model.load_state_dict(
-        torch.load("checkpoints/best_resnet18_trashnet.pth",
-                   map_location=device,
-                   weights_only=True)
-    )
-    test_loss, test_acc = val_test(model, test_loader, criterion, device)
+            mlflow.log_metrics(
+                {
+                    "train_loss": train_loss,
+                    "train_acc": train_acc,
+                    "val_loss": val_loss,
+                    "val_acc": val_acc,
+                },
+                step=epoch,
+            )
 
-    # Generate plots
-    classes = train_loader.dataset.classes
-    y_true, y_pred = get_predictions(model, test_loader, device)
-    cm_save_path = "./outputs/trashnet_confusion_matrix.png"
-    plot_confusion_matrix(y_true, y_pred, classes, cm_save_path)
-    loss_path = "./outputs/trashnet_loss.png"
-    acc_path = "./outputs/trashnet_acc.png"
-    plot_train_val(load_path=log_file, loss_path=loss_path, acc_path=acc_path)
+            if val_acc > best_val_acc:
+                best_val_acc = val_acc
+                torch.save(model.state_dict(), "checkpoints/best_resnet18_trashnet.pth")
 
-    print(f"\n Test Acc: {test_acc:.4f}")
+            scheduler.step()
+
+        # Test the model
+        model.load_state_dict(
+            torch.load("checkpoints/best_resnet18_trashnet.pth",
+                       map_location=device,
+                       weights_only=True)
+        )
+        test_loss, test_acc = val_test(model, test_loader, criterion, device)
+
+        # Generate plots
+        classes = train_loader.dataset.classes
+        y_true, y_pred = get_predictions(model, test_loader, device)
+        cm_save_path = "./outputs/trashnet_confusion_matrix.png"
+        plot_confusion_matrix(y_true, y_pred, classes, cm_save_path)
+        loss_path = "./outputs/trashnet_loss.png"
+        acc_path = "./outputs/trashnet_acc.png"
+        plot_train_val(load_path=log_file, loss_path=loss_path, acc_path=acc_path)
+
+        print(f"\n Test Acc: {test_acc:.4f}")
+
+        report = classification_report(
+            y_true, y_pred, target_names=classes, output_dict=True
+        )
+
+        mlflow.log_metric("test_acc", test_acc)
+        mlflow.log_dict(report, "classification_report.json")
+        mlflow.log_artifact(cm_save_path)
+        mlflow.log_artifact(loss_path)
+        mlflow.log_artifact(acc_path)
+        mlflow.log_artifact("checkpoints/best_resnet18_trashnet.pth")
+        # MLflow 3.x defaults mlflow.pytorch.log_model to the 'pt2'
+        # (torch.export traced-graph) serialization format, which needs an
+        # input_example *and* a TensorSpec-typed signature to trace
+        # model.forward with. Simpler and more battle-tested to just use
+        # the traditional pickle-based format instead — no tracing, no
+        # signature-shape gymnastics. Shape matches inference.py's
+        # transform output: a single 224x224 RGB image.
+        input_example = torch.randn(1, 3, 224, 224, device=device)
+        mlflow.pytorch.log_model(
+            model, name="model", input_example=input_example, serialization_format="pickle"
+        )
 
 
 if __name__ == '__main__':
