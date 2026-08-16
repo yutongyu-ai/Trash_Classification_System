@@ -1,7 +1,5 @@
-"""Shared Streamlit page for both entry points: frontend/app.py (calls the
-FastAPI backend over HTTP) and streamlit_app.py (calls inference.predict()
-in-process). Each supplies its own predict_fn(image) -> dict and everything
-else — layout, low-confidence handling — lives here once."""
+"""Shared Streamlit page for app.py (HTTP) and streamlit_app.py (in-process).
+Each supplies its own predict_fn(image) -> dict."""
 import io
 
 import streamlit as st
@@ -16,8 +14,7 @@ CLASS_INFO = {
     "General Waste": "🗑️ General Waste",
 }
 
-# Below this, show a low-confidence warning + runner-up candidates instead
-# of a plain success — too close to the 6-class random baseline (16.7%).
+# Close to the 6-class random baseline (16.7%) below this.
 CONFIDENCE_THRESHOLD = 0.5
 
 

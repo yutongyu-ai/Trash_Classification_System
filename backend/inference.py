@@ -8,14 +8,14 @@ from models.resnet18 import get_model
 BASE_DIR = Path(__file__).resolve().parent
 LOCAL_MODEL_PATH = BASE_DIR.parent / "checkpoints" / "best_resnet18_trashnet.pth"
 
-# Fallback source when no local checkpoint is present (e.g. a fresh clone
-# that hasn't run training): https://huggingface.co/tonghahaha/trashnet-resnet18
+# Fallback when no local checkpoint exists (e.g. a fresh clone).
 HF_REPO_ID = "tonghahaha/trashnet-resnet18"
 HF_FILENAME = "best_resnet18_trashnet.pth"
 
 CLASSES = ['cardboard', 'glass', 'metal', 'paper', 'plastic', 'General Waste']
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+# CPU-only by design — torch.cuda.is_available() can lie on shared machines.
+device = "cpu"
 
 transform = transforms.Compose([
     transforms.Resize((224, 224)),

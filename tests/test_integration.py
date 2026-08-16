@@ -10,9 +10,8 @@ import main as backend_main
 
 @pytest.mark.integration
 def test_predict_end_to_end_downloads_real_model():
-    """No monkeypatching — downloads the real checkpoint from HF Hub (if no
-    local checkpoint is present) and runs a real forward pass. Marked
-    `integration` so a temporary HF Hub outage doesn't block a PR."""
+    """No monkeypatching — downloads the real checkpoint and runs a real
+    forward pass."""
     inference._model = None
 
     buf = io.BytesIO()

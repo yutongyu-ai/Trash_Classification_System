@@ -20,20 +20,11 @@ def build_objective(
     num_workers=2,
     seed=42,
 ):
-    """
-    Build an Optuna objective for fine-tuning ResNet18 on TrashNet.
+    """Build an Optuna objective for fine-tuning ResNet18 on TrashNet.
 
-    Search space is training hyperparameters only (not architecture, so
-    every trial's checkpoint shape matches what backend/inference.py
-    expects): lr (log-uniform 1e-4..3e-3, bracketing the known-good 3e-4),
-    weight_decay (log-uniform 1e-5..1e-2, wide since TrashNet is small and
-    overfits easily), batch_size ({16, 32, 64}).
-
-    Uses AdamW + CosineAnnealingLR matching main.py's final recipe, with
     T_max=full_num_epochs (not the trial's shortened num_epochs) so a
-    trial's LR trajectory mirrors the *start* of the full run rather than
-    being its own fully-annealed short schedule — otherwise a trial's
-    "best" lr wouldn't transfer to the real training run.
+    trial's LR schedule mirrors the real run instead of its own
+    fully-annealed short one.
     """
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     class_weights = class_weights.to(device)
@@ -43,8 +34,7 @@ def build_objective(
         weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-2, log=True)
         batch_size = trial.suggest_categorical("batch_size", [16, 32, 64])
 
-        # Same seed every trial so comparisons isolate the hyperparameters'
-        # effect from random init/data-order noise.
+        # Same seed every trial to isolate hyperparameter effects from RNG noise.
         set_seed(seed)
 
         with mlflow.start_run(run_name=f"trial-{trial.number}"):

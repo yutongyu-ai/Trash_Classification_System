@@ -2,9 +2,8 @@ import sys
 import time
 from pathlib import Path
 
-# Streamlit Community Cloud runs a single process, so this calls
-# inference.predict() directly instead of over HTTP (frontend/app.py is the
-# HTTP version — see README's "Live Demo"). Both share frontend/ui.py.
+# Single-process Streamlit Cloud entry point — calls predict() in-process
+# instead of over HTTP (frontend/app.py is the HTTP version).
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(ROOT / "frontend"))

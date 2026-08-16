@@ -25,15 +25,12 @@ NUM_WORKERS = 4
 SEED = 42
 REGISTRY_NAME = "trashnet-resnet18"
 CHAMPION_ALIAS = "champion"
-# Deployment file the backend/HF push actually read; only overwritten if this
-# run's test_acc beats the current champion (see promotion logic below).
+# What backend/HF push actually reads; only updated on promotion.
 CHAMPION_CKPT = "checkpoints/best_resnet18_trashnet.pth"
-# Scratch checkpoint for this run alone — every run trains/tests against its
-# own copy so a run that doesn't win champion can't clobber the deployed one.
+# Per-run scratch copy so a losing run can't clobber the deployed one.
 RUN_CKPT = "checkpoints/_run_best.pth"
 
-# Same run-scoped-vs-champion split for the plots/log that outputs/ exposes —
-# only a promoted run's copies become the ones people actually look at.
+# Same run-vs-champion split for the outputs/ plots and training log.
 RUN_CM_PATH = "outputs/_run_confusion_matrix.png"
 RUN_LOSS_PATH = "outputs/_run_loss.png"
 RUN_ACC_PATH = "outputs/_run_acc.png"
@@ -80,9 +77,7 @@ def main():
     class_weights = get_class_weights(train_loader.dataset)
 
     # ---- Hyperparameter search ----
-    # Short trials just rank configs; T_max uses full_num_epochs (not
-    # hpo_epochs) so a trial's LR schedule mirrors the start of the eventual
-    # full run instead of its own fully-annealed short one (see hpo.py).
+    # T_max uses full_num_epochs so a trial's LR schedule mirrors the real run.
     n_hpo_trials = 25
     hpo_epochs = 6
     full_num_epochs = 30
@@ -109,8 +104,7 @@ def main():
     best_params = study.best_trial.params
 
     # ---- Final training with the best hyperparameters found above ----
-    # Re-seed so the final run's init/data order don't depend on how much
-    # randomness the HPO trials above consumed.
+    # Re-seed so this run doesn't depend on how much RNG state HPO consumed.
     set_seed(SEED)
     train_loader, val_loader = get_trashnet_train(
         data_root=DATA_ROOT, batch_size=best_params["batch_size"], num_workers=NUM_WORKERS
@@ -206,20 +200,14 @@ def main():
         mlflow.log_artifact(loss_path)
         mlflow.log_artifact(acc_path)
         mlflow.log_artifact(RUN_CKPT)
-        # MLflow 3.x's default 'pt2' serialization needs tracing/signature
-        # gymnastics; serialization_format="pickle" avoids that.
+        # Avoids MLflow 3.x's default 'pt2' tracing/signature requirements.
         input_example = torch.randn(1, 3, 224, 224, device=device)
         model_info = mlflow.pytorch.log_model(
             model, name="model", input_example=input_example, serialization_format="pickle"
         )
 
-        # ---- Model registry: register this run as a new version, but only
-        # move the "champion" alias if this run's test_acc beats whoever
-        # currently holds it. The champion alias is what should get pushed
-        # to HF Hub (still a manual/separate step, see README) — this is
-        # what would have stopped an accidental downgrade like the one this
-        # project hit manually before this was automated: local-only, since
-        # mlflow.db/mlruns/ aren't synced anywhere the deployed app can read. ----
+        # Register + only promote to champion if this run beats it — stops a
+        # worse run from silently overwriting a better checkpoint.
         client = MlflowClient()
         model_version = mlflow.register_model(model_info.model_uri, REGISTRY_NAME)
 
@@ -227,8 +215,7 @@ def main():
         try:
             champion = client.get_model_version_by_alias(REGISTRY_NAME, CHAMPION_ALIAS)
         except MlflowException as e:
-            # Only a missing alias means "no champion yet" — anything else
-            # (DB locked, etc.) should surface instead of silently promoting.
+            # Only "no alias yet" means first run; other errors should surface.
             if e.error_code != "INVALID_PARAMETER_VALUE":
                 raise
         else:

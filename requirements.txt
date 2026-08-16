@@ -1,8 +1,5 @@
-# Deps for streamlit_app.py (Streamlit Community Cloud entry point).
-# Diverges from backend/requirements.txt: Streamlit Cloud's package index
-# lacks torch==2.5.1, so this pins the newest available pair instead
-# (torchvision 0.28.0 requires torch==2.13.0 exactly). Inference-only —
-# no fastapi/uvicorn/scikit-learn, since this doesn't use the FastAPI service.
+# Deps for streamlit_app.py. Pinned separately from backend/requirements.txt
+# since Streamlit Cloud's package index lacks torch==2.5.1.
 torch==2.13.0
 torchvision==0.28.0
 huggingface_hub

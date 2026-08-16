@@ -4,7 +4,6 @@ import requests
 
 from ui import image_to_png_bytes, render_app
 
-# localhost is correct for running both services without Docker;
 # docker-compose overrides this to the "backend" service hostname.
 API_URL = os.environ.get("BACKEND_URL", "http://localhost:8000/predict")
 

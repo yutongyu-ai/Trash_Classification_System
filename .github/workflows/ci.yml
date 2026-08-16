@@ -37,8 +37,7 @@ jobs:
 
   integration-test:
     runs-on: ubuntu-latest
-    # A temporary Hugging Face Hub outage shouldn't block a PR from merging;
-    # this job is informational, not a merge gate.
+    # Informational only — a temporary HF Hub outage shouldn't block a PR.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
@@ -68,5 +67,5 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker build ./backend
       - run: docker build ./frontend
-      - name: Build single-container image (HF Spaces deployment)
+      - name: Build single-container image (Cloud Run / HF Spaces paid plan)
         run: docker build .

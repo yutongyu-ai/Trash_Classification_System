@@ -1,5 +1,3 @@
-# Scoped to catch real bugs (syntax errors, undefined names, unused
-# imports/variables) rather than enforcing a style preference across the
-# whole existing codebase.
+# Scoped to real bugs, not style — syntax errors, undefined names, unused vars.
 [lint]
 select = ["E9", "F"]

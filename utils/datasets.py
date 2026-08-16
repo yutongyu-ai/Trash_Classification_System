@@ -20,8 +20,7 @@ def _split_dataset(
            for d in [train_dir, val_dir, test_dir]):
         return
 
-    # Wipe any partial split before regenerating, so a previous incomplete
-    # run can't leave stale files that end up duplicated across train/val/test.
+    # Wipe any partial split so a prior incomplete run can't leave stale files.
     for d in [train_dir, val_dir, test_dir]:
         shutil.rmtree(d, ignore_errors=True)
         os.makedirs(d, exist_ok=True)
@@ -138,11 +137,8 @@ def get_trashnet_test(
 
 
 def get_class_weights(dataset):
-    """
-    Inverse-frequency class weights (weight_i = N/(K*n_i)) for
-    nn.CrossEntropyLoss(weight=...) — TrashNet's raw "trash" folder (shown
-    as "General Waste" in the app) has ~3.6x fewer images than "paper".
-    """
+    """Inverse-frequency class weights (weight_i = N/(K*n_i)) for
+    nn.CrossEntropyLoss(weight=...) — corrects TrashNet's class imbalance."""
     counts = Counter(dataset.targets)
     num_classes = len(dataset.classes)
     total = len(dataset.targets)

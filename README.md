@@ -151,9 +151,15 @@ The application is fully containerized using Docker Compose.
 | `backend` | FastAPI inference server |
 | `frontend` | Streamlit web application |
 
-The `backend` service runs CPU-only inference by default. For a single-image
-ResNet18 forward pass, CPU latency is generally fine for interactive use; GPU
-acceleration mainly pays off for batch training/inference, not this service.
+The `backend` service always runs CPU-only inference (hardcoded in
+`backend/inference.py`, not just a fallback) — GPU support was tried and
+reverted earlier in this project's history after it caused OOM crashes on a
+memory-constrained machine (see git history), and `torch.cuda.is_available()`
+turned out to be an unreliable signal on shared/HPC environments anyway
+(can report `True` on a device that's actually busy or unusable). For a
+single-image ResNet18 forward pass, CPU latency is generally fine for
+interactive use; GPU acceleration mainly pays off for batch
+training/inference, not this service.
 
 ## Model Weights
 
@@ -333,7 +339,8 @@ project/
 │   └── requirements.txt
 │
 ├── frontend/
-│   ├── app.py                # Streamlit frontend
+│   ├── app.py                # Streamlit entry point, calls FastAPI backend over HTTP
+│   ├── ui.py                 # Shared Streamlit page, used by app.py and streamlit_app.py
 │   ├── Dockerfile
 │   └── requirements.txt
 │

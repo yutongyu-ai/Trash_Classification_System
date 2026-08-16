@@ -3,7 +3,6 @@ import time
 from contextlib import asynccontextmanager
 
 from PIL import Image
-import torch
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,8 +14,7 @@ MAX_IMAGE_DIMENSION = 4096  # px, per side — plenty for a phone photo
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Load (or download from HF Hub) once at startup so a missing/broken
-    # checkpoint fails loudly here instead of on a user's first request.
+    # Load at startup so a broken checkpoint fails loudly here, not on request.
     load_model()
     yield
 
@@ -58,9 +56,6 @@ async def predict_api(file: UploadFile = File(...)):
         }
 
     result = predict(image)
-
-    if torch.cuda.is_available():
-        torch.cuda.synchronize()
 
     latency = (time.perf_counter() - start_time) * 1000
 
