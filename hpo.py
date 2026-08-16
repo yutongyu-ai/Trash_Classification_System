@@ -6,6 +6,7 @@ import torch.optim as optim
 
 from train import train, val_test
 from utils.datasets import get_trashnet_train
+from utils.seed import set_seed
 from backend.models.resnet18 import get_model
 
 
@@ -17,6 +18,7 @@ def build_objective(
     device=None,
     data_root="data",
     num_workers=2,
+    seed=42,
 ):
     """
     Build an Optuna objective for fine-tuning ResNet18 on TrashNet.
@@ -40,6 +42,10 @@ def build_objective(
         lr = trial.suggest_float("lr", 1e-4, 3e-3, log=True)
         weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-2, log=True)
         batch_size = trial.suggest_categorical("batch_size", [16, 32, 64])
+
+        # Same seed every trial so comparisons isolate the hyperparameters'
+        # effect from random init/data-order noise.
+        set_seed(seed)
 
         with mlflow.start_run(run_name=f"trial-{trial.number}"):
             mlflow.log_params({

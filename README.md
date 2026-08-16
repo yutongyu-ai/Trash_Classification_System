@@ -28,8 +28,8 @@ The system classifies waste images into six categories from the TrashNet dataset
 | Model Architecture | ResNet18 |
 | Dataset | TrashNet |
 | Classes | 6 |
-| Best Validation Accuracy | 94.4% (epoch 19/30) |
-| Test Accuracy | 92.2% (353/383 images) |
+| Best Validation Accuracy | 94.4% (epoch 17/30) |
+| Test Accuracy | 94.0% (360/383 images) |
 | Inference Latency | ~60 ms |
 
 ## Per-Class Results (test set, 383 images)
@@ -40,12 +40,12 @@ and logged as an MLflow artifact (`classification_report.json`) — see
 
 | Class | Support | Precision | Recall | F1 |
 |---|---|---|---|---|
-| cardboard | 61 | 98.3% | 95.1% | 96.7% |
-| glass | 76 | 89.7% | 92.1% | 90.9% |
-| metal | 62 | 88.2% | 96.8% | 92.3% |
-| paper | 90 | 97.6% | 90.0% | 93.7% |
-| plastic | 73 | 89.0% | 89.0% | 89.0% |
-| General Waste | 21 | 86.4% | 90.5% | 88.4% |
+| cardboard | 61 | 96.8% | 98.4% | 97.6% |
+| glass | 76 | 93.6% | 96.1% | 94.8% |
+| metal | 62 | 90.9% | 96.8% | 93.8% |
+| paper | 90 | 97.6% | 91.1% | 94.3% |
+| plastic | 73 | 92.9% | 89.0% | 90.9% |
+| General Waste | 21 | 87.0% | 95.2% | 90.9% |
 
 `General Waste` has the weakest precision and by far the fewest test examples
 (21, vs. 61-90 for the others); `plastic` has the weakest recall despite
@@ -61,13 +61,13 @@ likely help more than further loss reweighting at this point.
 
 ## Training Curves
 
-Train accuracy climbs to ~99.5% while validation accuracy plateaus around
-91-95% from epoch ~10 onward — the growing train/val gap and validation
+Train accuracy climbs to ~99.6% while validation accuracy plateaus around
+91-94% from epoch ~8 onward — the growing train/val gap and validation
 loss flattening (while training loss keeps dropping) are signs of
 overfitting on this small (~2,500 image) dataset, despite the
 augmentation (random flip/rotation) and dropout (p=0.5) already in the
 training pipeline. The checkpoint actually shipped is whichever epoch had
-the best validation accuracy (epoch 19 here), not the final epoch, so this
+the best validation accuracy (epoch 17 here), not the final epoch, so this
 doesn't directly hurt the deployed model's accuracy — but it's a signal
 that stronger augmentation, partial backbone freezing, or more data would
 likely generalize better than training longer.
@@ -275,6 +275,42 @@ mlflow ui
 
 Then open `http://localhost:5000` to compare trials by validation accuracy,
 inspect per-epoch curves, and download any run's artifacts.
+
+### Model Versioning
+
+Every final-training run is registered as a new version of the
+`trashnet-resnet18` model in MLflow's [Model
+Registry](https://mlflow.org/docs/latest/model-registry.html) (also local,
+in `./mlflow.db`). A `champion` alias tracks whichever version currently has
+the best `test_acc` — a run only takes over the alias if it beats the
+current champion, so a worse run never silently displaces a better one. When
+a run is promoted, `main.py` also copies its checkpoint *and* its
+plots/training-log (`outputs/trashnet_*`) over the previous champion's — a
+non-winning run only ever touches its own scratch copies
+(`checkpoints/_run_best.pth`, `outputs/_run_*`), never the shared files.
+
+This was added after a near-miss earlier in this project's history, where a
+fresh training run (92.2% test_acc) almost got manually pushed to Hugging
+Face Hub over a better existing checkpoint (94.3%) — nothing at the time
+checked whether the newest run was actually the best one.
+
+Pushing the champion's checkpoint to HF Hub (what the deployed app actually
+serves) is still a separate, manual step — the registry only decides
+*which* local run deserves that promotion, it doesn't reach out to HF Hub
+itself. The numbers and plots on this page reflect whatever run is
+currently both the registry's `champion` *and* what's live on HF Hub.
+
+### Reproducibility
+
+`utils/seed.py::set_seed()` fixes the `random`/`numpy`/`torch` RNGs and
+disables cuDNN's non-deterministic algorithm selection, called once before
+each HPO trial and again before the final training run. This makes repeated
+runs land on the same final `test_acc`, which is what the champion
+comparison above relies on to be meaningful. It's not full epoch-by-epoch
+determinism, though — two same-seed runs have matched on final `test_acc` in
+practice but still show slightly different per-epoch numbers, most likely
+from `DataLoader`'s `num_workers=4` worker processes not being pinned to the
+main process's seed.
 
 ---
 
