@@ -155,8 +155,10 @@ No manual setup needed — on first startup, `backend` automatically downloads
 the trained checkpoint from
 [Hugging Face Hub](https://huggingface.co/tonghahaha/trashnet-resnet18) if
 `checkpoints/best_resnet18_trashnet.pth` isn't already present locally (e.g.
-from running your own training via `train_hpo.slurm` / `main.py`). A local
-checkpoint always takes priority over the hosted one.
+from running your own training via `main.py`, which runs Optuna HPO then a
+full training pass — see `hpo.py`/`train.py`; on a SLURM cluster this is
+typically submitted as a batch job, not run directly). A local checkpoint
+always takes priority over the hosted one.
 
 ---
 
@@ -310,7 +312,6 @@ project/
 ├── requirements.txt           # Deps for streamlit_app.py on Streamlit Community Cloud
 ├── hpo.py                     # Hyperparameter optimization
 ├── train.py                   # Training script
-├── train_hpo.slurm            # SLURM job spec for HPC training
-├── main.py
+├── main.py                    # Entry point: runs HPO then final training
 ├── README.md
 ```

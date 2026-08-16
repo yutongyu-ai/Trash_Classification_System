@@ -23,8 +23,9 @@ outputs/
 mlflow.db
 mlruns/
 
-# SLURM job logs
+# SLURM job logs and job specs (institution/account-specific, not portable)
 logs/
+*.slurm
 
 # Logs
 *.log
